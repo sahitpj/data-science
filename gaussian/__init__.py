@@ -1,1 +1,2 @@
 from sample import GaussianMMSampler, GaussianSampler
+from functions import EstimationMaximisation

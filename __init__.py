@@ -1,2 +1,2 @@
 from utils import meta, covariance_data
-from gaussian import GaussianMMSampler, GaussianSampler
+from gaussian import GaussianMMSampler, GaussianSampler, EstimationMaximisation
