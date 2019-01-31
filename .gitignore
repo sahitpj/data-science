@@ -7,8 +7,6 @@
 #data files
 data/
 
-#ipython notebooks
-*.ipynb
 
 #ipython checkpoints
 .ipynb_checkpoints
