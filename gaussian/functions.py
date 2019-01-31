@@ -13,7 +13,6 @@ class EstimationMaximisation(object):
         self.means = None
         self.cov_matrices = None
         self.weights = None
-        self.params = None
         self.gamma = None
 
     def initilize_means(self):
@@ -27,7 +26,7 @@ class EstimationMaximisation(object):
     def initilize_cov_matrices(self):
         cov_matrices = list()
         for i in xrange(self.no_of_gaussians):
-            cov_matrices.append(np.cov(np.random.rand(self.dimension, 50)))
+            cov_matrices.append(np.cov(np.random.rand(self.dimension, 600)))
         self.cov_matrices = cov_matrices
         assert(cov_matrices[0].shape[0] == self.dimension)
         assert(cov_matrices[0].shape[1] == self.dimension)
@@ -40,10 +39,17 @@ class EstimationMaximisation(object):
         l = sum(params)
         for i in xrange(self.no_of_gaussians):
             params[i] = params[i]/l
-        assert(sum(params) == 1.0)
-        self.params = params
+        # assert(sum(params) == 1.0)
+        self.weights = params
         return params
 
+    def initialize_gamma(self):
+        k = np.random.rand(self.no_of_points, self.no_of_gaussians)
+        sums = np.sum(k, axis=0)
+        for i in xrange(self.no_of_gaussians):
+            k[:, i] = k[:, i]/sums[i]
+        self.gamma = k
+        return k
 
     def update(self):
         '''
@@ -53,7 +59,8 @@ class EstimationMaximisation(object):
         for i in xrange(self.no_of_points):
             l = 0.0
             for j in xrange(self.no_of_gaussians):
-                prob = multivariate_normal(self.points[i], mean=self.means[j], cov=self.cov_matrices[j])*self.weights[j]
+                prob = multivariate_normal.pdf(self.points[i], self.means[j], self.cov_matrices[j])*self.weights[j]
+                # print 'a'
                 gamma[i, j] = prob
                 l += prob
             for j in xrange(self.no_of_gaussians):
@@ -61,23 +68,78 @@ class EstimationMaximisation(object):
         self.gamma = gamma
         s = np.sum(gamma, axis=0) #row wise sum of gamma matrix
         for i in xrange(self.no_of_gaussians):
+            self.weights[i] = s[i]/self.no_of_points #updating weights
+            mean = np.zeros((self.dimension, ))
+            for j in xrange(self.no_of_points): 
+                print np.argwhere(np.isnan(gamma[j, i]))
+                k = np.multiply(self.points[j], gamma[j, i])
+                mean += k
+            self.means[i] = mean/s[i] #updating means
+        for i in xrange(self.no_of_gaussians):
+            g = np.array(self.points, (self.no_of_points, self.dimension))-np.reshape(self.means[i], (1, self.dimension))        
+            self.cov_matrices[i] = np.dot(g.T, self.gamma[:, i]*g) #updating covariance matrices
+        print self.means
+
+
+    def update_inverse(self):
+        s = np.sum(self.gamma, axis=0)
+        self.weights = list()
+        self.means = list()
+        self.cov_matrices = list()
+        for i in xrange(self.no_of_gaussians):
+            self.weights.append(0)
+            self.means.append(0)
+            self.cov_matrices.append(0)
+        for i in xrange(self.no_of_gaussians):
             self.weights[i] = s[i]/self.no_of_points
-            mean = np.array((self.dimension, ))
-            for j in xrange(self.no_of_points):
-                t += np.multiply(self.points[j], gamma[i, j])
+            mean = np.zeros((self.dimension, ))
+            for j in xrange(self.no_of_points): 
+                k = np.multiply(self.points[j], self.gamma[j, i])
+                mean += k
             self.means[i] = mean/s[i]
         for i in xrange(self.no_of_gaussians):
-            g = np.array(self.points, (self.no_of_points, self.dimension))-np.array(self.means[i], (1, self.dimension))        
-            self.cov_matrices[i] = np.dot(g.T, gamma[:, i]*g)
+            k = np.array(self.points)
+            g = np.reshape(k, (self.no_of_points, self.dimension))-np.reshape(self.means[i], (1, self.dimension))        
+            self.cov_matrices[i] = np.dot(g.T, np.reshape(self.gamma[:, i], (self.gamma.shape[0], 1))*g)
+        gamma = np.ones((self.no_of_points, self.no_of_gaussians)) 
+        for i in xrange(self.no_of_points):
+            l = 0.0
+            for j in xrange(self.no_of_gaussians):
+                prob = multivariate_normal.pdf(self.points[i], self.means[j], self.cov_matrices[j], allow_singular=True)*self.weights[j]
+                # print 'a'
+                gamma[i, j] = prob
+                l += prob
+            for j in xrange(self.no_of_gaussians):
+                gamma[i, j] = gamma[i, j]/l
+        self.gamma = gamma
         
+
 
     def iterate(self):
         for i in xrange(self.no_of_iterations):
+            if  i == 0:
+                if self.means == None:
+                    self.initilize_means()
+                if self.cov_matrices == None:
+                    self.initilize_cov_matrices()
+                if self.weights == None:
+                    self.initialize_parameters()
             print 'iteration - '+str(i+1)
-            self.update
+            self.update()
             print ''
             print 'iteration complete'
 
+    def iterate_inverse(self):    
+        for i in xrange(self.no_of_iterations):
+            if i == 0:
+                if self.gamma == None:
+                    self.initialize_gamma()
+            print 'iteration - '+str(i+1)
+            self.update_inverse()
+            print ''
+        print '#####Iterations complete#######'
+
     def log_likelihood(self):
         return 1
+
 

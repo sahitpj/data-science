@@ -28,13 +28,44 @@ class GaussianSampler(object):
     def __init__(self, mean, cov):
         self.mean = mean
         self.cov = cov
+        self.zero = np.zeros(self.mean.shape)
 
     def sample(self):
-        return np.random.multivariate_normal(self.mean, self.cov)
+        return np.random.multivariate_normal(self.zero, self.cov) + self.mean
 
     def sample_list(self, no_of_points):
         sample_points = list()
         for i in xrange(no_of_points):
-            point = np.random.multivariate_normal(self.mean, self.cov)
+            point = np.random.multivariate_normal(self.zero, self.cov) + self.mean
             sample_points.append(point)
         return sample_points #being returnd as list of points.
+
+class GaussianRSampler(GaussianSampler):
+    def __init__(self, dimensions):
+        self.dimensions = dimensions
+        self.points = self.initilize_points()
+        self.mean = self.initilize_mean()
+        self.cov = self.initilize_cov_matrix()
+        self.zero = np.zeros(self.mean.shape)
+
+    def initilize_points(self):
+        return np.random.rand(self.dimensions, self.dimensions+100)*2
+
+    def initilize_mean(self):
+        k =  np.reshape(np.mean(self.points, axis=1), (self.dimensions, ))
+        assert(k.shape[0] == self.dimensions)
+        print k
+        return k
+
+    def initilize_cov_matrix(self):
+        k = np.cov(self.points)
+        assert(k.shape[0] == self.dimensions)
+        assert(k.shape[1] == self.dimensions)
+        return k
+        
+    def distance(self, point):
+        return np.linalg.norm(point-self.mean)
+
+    def sample_distance(self):
+        point = np.random.multivariate_normal(self.zero, self.cov) + self.mean
+        return np.linalg.norm(point-self.mean)
